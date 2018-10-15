@@ -12,4 +12,3 @@ SOURCES += \
 HEADERS += \
     ../include/cpp_98_audio_envelope.hpp
 
-LIBS += -lc++
