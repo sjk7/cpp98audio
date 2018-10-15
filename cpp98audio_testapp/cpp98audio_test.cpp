@@ -16,6 +16,7 @@ int main() {
 
     my::cpp98::audio::envelope env(44100, 2, 20.0, 500.0);
     hist_t& history = env.history();
+    history.resize(sz);
     env.envelope_shorts(shortbuf, shortbuf + sz, nch);
     float env_value = env();
     assert(env_value == 0);

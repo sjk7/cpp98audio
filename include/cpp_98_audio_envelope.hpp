@@ -112,6 +112,7 @@ namespace cpp98 {
                 int nsamps = end - begin;
                 float* vptr = 0;
                 if (pvhist) {
+
                     pvhist->resize(nsamps);
                     vptr = &pvhist->operator[](0);
                 }
