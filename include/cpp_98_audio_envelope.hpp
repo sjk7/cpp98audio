@@ -8,6 +8,7 @@
 #include <vector>
 #include <limits>
 
+
 namespace my {
 template <typename T>
 inline bool float_equal(T f, T t,
@@ -16,9 +17,22 @@ inline bool float_equal(T f, T t,
     float diff = f - (float)t;
     diff = fabsf(diff);
     if (diff <= tolerance) {
+		
         return true;
     }
     return false;
+}
+
+template<class T> 
+const T& min(const T& a, const T& b)
+{
+    return (b < a) ? b : a;
+}
+
+template<class T> 
+const T& max(const T& a, const T& b)
+{
+    return (a < b) ? b : a;
 }
 namespace cpp98 {
     namespace audio {
@@ -28,6 +42,12 @@ namespace cpp98 {
 #ifndef TAU_DECAY
 #define TAU_DECAY 0.368f
 #endif
+
+		inline float TWENTY_DB_DOWN() { return 0.1f; }
+		inline float TWENTY_FIVE_DB_DOWN() { return 0.056234f; }
+		inline float THIRTY_DB_DOWN() { return 0.031623f; }
+		inline float FORTY_DB_DOWN() { return 0.01f; }
+		inline float SIXTY_DB_DOWN() { return 0.001f; }
 
         template <typename T> static inline T max_value() {
             return std::numeric_limits<T>::max();
@@ -113,6 +133,70 @@ namespace cpp98 {
             return;
         }
 
+	template <typename T> inline float min_audio_val(T);
+	
+	template <>
+	inline float min_audio_val<short>(short){
+		return -32768.0f;
+	}
+	
+	inline float max_audio_val(short){
+		return 32767.0f;
+	}
+
+
+
+	
+	template <typename T>
+	static inline void normalize_buffer(T* begin, T* end, int nch)
+	{
+		T* ptr = begin;
+		float fnorm = 1.0;
+		int peak = 0;
+		static const float MAX_AMP_FACTOR = 10.0f;
+		int the_peak = 500;
+		float amp_factor = 1.0f;
+				
+		const float max_val = max_audio_val(T());
+		const float min_val = min_audio_val(T());
+		const float abs_max_val = my::min<float> (max_val, fabs(min_val));
+
+		while (ptr < end)
+		{
+			for (int ch = 0; ch < nch; ch++){
+				short pk = abs(*ptr);
+				if (pk > the_peak){
+					the_peak = pk;
+					amp_factor = abs_max_val/ (float)the_peak;
+				}
+				
+			}
+			ptr += nch;
+		}
+
+		ptr = begin;
+		
+		while (ptr < end)
+		{
+			for (int ch = 0; ch < nch; ch++){
+				float f = (float)*ptr;
+				f *= amp_factor;
+				
+				if (f >=0){
+					if (f > max_val) f = max_val;
+				}else{
+					if (f < min_val) f  = min_val;
+				}
+				*ptr = (T)f;
+			}
+			 ptr += nch;
+		}
+
+
+	}
+
+
+
         class envelope {
             public:
             typedef std::vector<float> history_t;
@@ -123,6 +207,8 @@ namespace cpp98 {
             inline history_t& history() {
                 return m_history;
             }
+
+
 
             inline float update(const float value) {
                 /*/ reference:
@@ -161,6 +247,11 @@ namespace cpp98 {
                 }
                 return m_env;
             }
+
+			inline float update(const short value)
+			{
+				return update ( (float)value / 32768.0f);
+			}
 
             private:
             float m_samplerate;
@@ -231,6 +322,25 @@ namespace cpp98 {
                 (void)m_nch;
             }
 
+			static inline float short_to_float(short val)
+			{
+				float fval = (float)val;
+				fval /= 32768;
+				return fval;
+			}
+
+			static inline short float_to_short(float fval)
+			{
+				
+				fval *= 32768;
+				if (fval > 32767) {
+					fval = 32767;
+				}else if (fval < -32768){
+					fval = 32768;
+				}
+				return fval;
+			}
+
             static inline void shorts_to_floats(
                 const short* begin, const short* end,
                 const int nch, history_t* pvhist = 0) {
@@ -257,10 +367,6 @@ namespace cpp98 {
                         if (vptr) {
                             *vptr = val;
                             ++vptr;
-                        }
-                        if (ctr >= 22050) {
-                            volatile int x = 0;
-                            ++x;
                         }
                         ++ctr;
                         ++ch;
